@@ -1,0 +1,31 @@
+# ── Sensitive — NEVER commit these ───────────────────────────────────────────
+api_config.json          # contains your AI API key
+hub_config.json          # contains local scraper settings
+
+# ── Output data — too large / machine-specific ────────────────────────────────
+Excel and Images/
+gig_images/
+snapshots/
+*.xlsx
+*.csv
+
+# ── Python bytecode ───────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+
+# ── Claude Code internal ──────────────────────────────────────────────────────
+.claude/
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+
+# ── Editor ────────────────────────────────────────────────────────────────────
+.vscode/
+*.swp
+*.idea/

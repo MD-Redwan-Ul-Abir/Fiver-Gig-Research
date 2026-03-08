@@ -1,0 +1,27 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Version control
+.git/
+.gitignore
+
+# Logs and debug files
+*.log
+snapshots/
+
+# These are bind-mounted at runtime from the host —
+# excluding them keeps the image lean and avoids stale data being baked in
+Excel and Images/
+gig_images/
+api_config.json
+hub_config.json
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+*.swp

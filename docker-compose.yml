@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  fiverr-hub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fiverr-research-hub:latest
+    container_name: fiverr-research-hub
+    ports:
+      - "6080:6080"   # noVNC  →  open http://localhost:6080/vnc.html
+      - "5900:5900"   # VNC    →  optional desktop VNC client (no password)
+    volumes:
+      # Output files land on your local machine, survive container restarts
+      - "./Excel and Images:/app/Excel and Images"
+      # Settings and API keys persist between runs
+      - "./api_config.json:/app/api_config.json"
+      - "./hub_config.json:/app/hub_config.json"
+    environment:
+      - DISPLAY=:1
+      - PYTHONUNBUFFERED=1
+    # Chromium needs ≥512 MB /dev/shm to avoid tab crashes; 2 GB is comfortable
+    shm_size: '2gb'
+    restart: unless-stopped
+    # Prevent the container being OOM-killed during heavy scraping
+    mem_limit: 4g
