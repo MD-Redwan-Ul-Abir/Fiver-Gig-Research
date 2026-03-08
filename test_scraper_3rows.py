@@ -1,7 +1,19 @@
 """Quick test: scrape only 3 sub-niches to verify everything works.
 This uses macOS notifications and auto-polling — no input() needed.
 """
-import time, random, re, subprocess
+import time, random, re, subprocess, os, json
+
+_BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
+_CONFIG_FILE = os.path.join(_BASE_DIR, "hub_config.json")
+
+def _load_threshold():
+    try:
+        with open(_CONFIG_FILE) as f:
+            return int(json.load(f).get("threshold", 1800))
+    except Exception:
+        return 1800
+
+THRESHOLD = _load_threshold()
 
 TEST_QUERIES = [
     "Corporate Company Website",
@@ -229,7 +241,7 @@ with sync_playwright() as p:
 
         count = extract_gig_count(html, page)
         avg_r, avg_q = extract_stats(page, html)
-        verdict = "✅ Positive" if (count and count <= 1800) else "❌ Negative" if count else "❓ N/A"
+        verdict = "✅ Positive" if (count and count <= THRESHOLD) else "❌ Negative" if count else "❓ N/A"
 
         print(f"  Gig count   : {count:,}" if count else "  Gig count   : NOT FOUND")
         print(f"  Avg reviews : {avg_r}")

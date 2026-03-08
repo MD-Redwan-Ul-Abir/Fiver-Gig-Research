@@ -20,15 +20,28 @@ from openpyxl.utils import get_column_letter
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
 # ── Config ──────────────────────────────────────────────────────────────────
-import os as _os
-_BASE_DIR   = _os.path.dirname(_os.path.abspath(__file__))
-_OUTPUT_DIR = _os.path.join(_BASE_DIR, "Excel and Images")
+import os as _os, json as _json
+_BASE_DIR    = _os.path.dirname(_os.path.abspath(__file__))
+_OUTPUT_DIR  = _os.path.join(_BASE_DIR, "Excel and Images")
+_CONFIG_FILE = _os.path.join(_BASE_DIR, "hub_config.json")
 _os.makedirs(_OUTPUT_DIR, exist_ok=True)
-EXCEL_PATH  = _os.path.join(_OUTPUT_DIR, "Fiverr_Comprehensive_Niche_Research.xlsx")
-THRESHOLD   = 1800          # max gigs → Positive
-MIN_DELAY   = 3.5           # seconds between searches (min)
-MAX_DELAY   = 6.5           # seconds between searches (max)
-SLOW_DOWN   = 18            # after this many consecutive searches, take a longer break
+EXCEL_PATH   = _os.path.join(_OUTPUT_DIR, "Fiverr_Comprehensive_Niche_Research.xlsx")
+
+def _load_cfg():
+    d = {"threshold": 1800, "min_delay": 3.5, "max_delay": 6.5, "slow_down": 18}
+    if _os.path.exists(_CONFIG_FILE):
+        try:
+            with open(_CONFIG_FILE) as f:
+                return {**d, **_json.load(f)}
+        except Exception:
+            pass
+    return d
+
+_cfg      = _load_cfg()
+THRESHOLD = int(_cfg["threshold"])   # max gigs → Positive (read from Settings)
+MIN_DELAY = _cfg["min_delay"]
+MAX_DELAY = _cfg["max_delay"]
+SLOW_DOWN = int(_cfg["slow_down"])
 
 # ── Notifications & Chrome focus ────────────────────────────────────────────
 def notify(title, message):

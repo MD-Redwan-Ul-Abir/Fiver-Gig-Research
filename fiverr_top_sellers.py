@@ -47,9 +47,10 @@ def _load_cfg():
     return d
 
 _cfg      = _load_cfg()
+THRESHOLD = int(_cfg["threshold"])   # read from Settings, not hardcoded
 MIN_DELAY = _cfg["min_delay"]
 MAX_DELAY = _cfg["max_delay"]
-SLOW_DOWN = _cfg["slow_down"]
+SLOW_DOWN = int(_cfg["slow_down"])
 
 COL_SELLER_MIX  = 12   # L
 COL_ENTRY_LEVEL = 13   # M
