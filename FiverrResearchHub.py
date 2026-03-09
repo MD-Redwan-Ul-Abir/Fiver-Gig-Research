@@ -121,6 +121,11 @@ TOOLS = [
      "icon": "🔑", "group": "Scrapers",
      "desc": "Tests up to 10 alternative keyword phrasings per Positive niche to find lower-competition entry points. Saves results to a new Excel sheet + CSV.",
      "script": "fiverr_keyword_variations.py", "color": B_PURPLE, "btn_fg": B_PURPLE_FG, "warn": None},
+    {"id": "submission_analyzer", "title": "Submission Analyzer",
+     "icon": "📋", "group": "Scrapers",
+     "desc": "Analyze the top 5 gigs for specified submissions. Enter a count (e.g. 10), row numbers (e.g. 3,7,12), or sub-niche names. Downloads images and saves full results to CSV.",
+     "script": "fiverr_submission_analyzer.py", "color": B_PURPLE, "btn_fg": B_PURPLE_FG,
+     "warn": None, "input_prompt": "Enter submissions to analyze:\n\n• A count   → top N by score  (e.g.  10)\n• Row nos.  → specific rows   (e.g.  3,7,12)\n• Names     → by sub-niche    (e.g.  Corporate Website, AI SaaS)"},
     {"id": "test_scraper",  "title": "Quick Test  (3 Niches)",
      "icon": "🧪", "group": "Debug",
      "desc": "Runs a 3-niche test to confirm the scraper is working. No Excel changes — results shown in the log only.",
@@ -137,9 +142,14 @@ TOOLS = [
      "icon": "📡", "group": "Discovery",
      "desc": "Scans Fiverr homepage and category pages to capture currently popular/trending services. Results appear in the Trends page.",
      "script": "fiverr_trending.py", "color": B_PURPLE, "btn_fg": B_PURPLE_FG, "warn": None},
+    {"id": "gig_creator",    "title": "AI Gig Creator",
+     "icon": "✨", "group": "AI",
+     "desc": "Reads the latest Submission Analyzer results, sends the top 5 gigs per submission to ChatGPT / Gemini, and generates an optimized gig title, description, price, and differentiators. Saves to my_gigs.csv.",
+     "script": "fiverr_gig_creator.py", "color": B_YELLOW, "btn_fg": B_YELLOW_FG, "warn": None},
 ]
 
-GROUP_COLORS = {"Setup": B_BLUE, "Scrapers": B_GREEN, "Debug": C_MUTED, "Discovery": B_PURPLE}
+GROUP_COLORS = {"Setup": B_BLUE, "Scrapers": B_GREEN, "Debug": C_MUTED,
+                "Discovery": B_PURPLE, "AI": B_YELLOW}
 
 # ── Colour helpers ────────────────────────────────────────────────────────────
 def _adj(hex_col, factor):
@@ -2310,6 +2320,12 @@ class FiverrHub(tk.Tk):
         if tool.get("warn"):
             if not messagebox.askyesno("Confirm", tool["warn"], parent=self):
                 return
+
+        # Tools that require user input before launching
+        if tool.get("input_prompt"):
+            self._run_tool_with_input(tool)
+            return
+
         script = os.path.join(BASE_DIR, tool["script"])
         if not os.path.exists(script):
             messagebox.showerror("Not Found", f"Script not found:\n{script}", parent=self)
@@ -2341,6 +2357,79 @@ class FiverrHub(tk.Tk):
                 self._log_queue.put(("exception", str(e)))
 
         threading.Thread(target=_run, daemon=True).start()
+
+    def _run_tool_with_input(self, tool):
+        """Show an input dialog, then launch the tool passing the input as a CLI argument."""
+        dlg = tk.Toplevel(self)
+        dlg.title(tool["title"])
+        dlg.configure(bg=C_BG)
+        dlg.geometry("540x260")
+        dlg.resizable(False, False)
+        dlg.grab_set()
+
+        tk.Label(dlg, text=f"{tool['icon']}  {tool['title']}",
+                 font=FT_H2, bg=C_BG, fg=C_TEXT).pack(padx=20, pady=(16, 4), anchor="w")
+        tk.Label(dlg, text=tool["input_prompt"],
+                 font=FT_SMALL, bg=C_BG, fg=C_MUTED,
+                 justify="left", anchor="w").pack(padx=20, pady=(0, 10), anchor="w")
+
+        entry_var = tk.StringVar()
+        entry = tk.Entry(dlg, textvariable=entry_var, font=FT_BODY,
+                         bg=C_CARD, fg=C_TEXT, insertbackground=C_GREEN,
+                         relief="flat", highlightthickness=1,
+                         highlightcolor=C_GREEN, highlightbackground=C_BORDER)
+        entry.pack(fill="x", padx=20, pady=(0, 14), ipady=6)
+        entry.focus_set()
+
+        btn_row = tk.Frame(dlg, bg=C_BG)
+        btn_row.pack(fill="x", padx=20, pady=(0, 16))
+
+        def _launch():
+            query = entry_var.get().strip()
+            if not query:
+                messagebox.showwarning("Input Required",
+                    "Please enter a value before running.", parent=dlg)
+                return
+            dlg.destroy()
+            script = os.path.join(BASE_DIR, tool["script"])
+            if not os.path.exists(script):
+                messagebox.showerror("Not Found", f"Script not found:\n{script}", parent=self)
+                return
+
+            self._show_page("scrapers")
+            self._active_tool = tool
+            self._clear_log()
+            self._log_write(f"{'─'*60}\n", "muted")
+            self._log_write(f"  {tool['icon']}  {tool['title']}  —  \"{query}\"\n", "purple")
+            self._log_write(f"{'─'*60}\n\n", "muted")
+            self._set_status(f"Running: {tool['title']}", running=True)
+            self._log_status_dot.config(fg=C_GREEN)
+            self._btn_stop.config(state="normal")
+            self._disable_run_buttons()
+
+            def _run():
+                try:
+                    self._proc = subprocess.Popen(
+                        [PYTHON, script, query], cwd=BASE_DIR,
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        text=True, bufsize=1)
+                    for line in self._proc.stdout:
+                        self._log_queue.put(("line", line))
+                    self._proc.wait()
+                    rc = self._proc.returncode
+                    self._log_queue.put(("done", None) if rc == 0 else ("error", rc))
+                except Exception as e:
+                    self._log_queue.put(("exception", str(e)))
+
+            threading.Thread(target=_run, daemon=True).start()
+
+        _btn(btn_row, "▶  Analyze", _launch,
+             bg=tool["color"], fg=tool.get("btn_fg", "white"),
+             padx=16, pady=7).pack(side="left")
+        _btn(btn_row, "Cancel", dlg.destroy,
+             bg=B_GHOST, fg=B_GHOST_FG, padx=12, pady=7).pack(side="left", padx=(8, 0))
+
+        entry.bind("<Return>", lambda e: _launch())
 
     def _stop_tool(self):
         if self._proc and self._proc.poll() is None:
@@ -2383,6 +2472,7 @@ class FiverrHub(tk.Tk):
         if any(x in lo for x in ["positive","saved","done","complete","✓","ok","success"]): return "green"
         if any(x in lo for x in ["skip","already","n/a","not found"]):            return "yellow"
         if any(x in lo for x in ["searching","opening","starting","scraping","analyzing"]): return "blue"
+        if any(x in lo for x in ["calling","gemini","chatgpt","openai","ai provider","gig_title","gig creator"]): return "purple"
         if any(x in lo for x in ["variation","keyword","break","entry"]):          return "purple"
         if line.strip().startswith("─") or line.strip().startswith("="):           return "muted"
         return None
@@ -2395,6 +2485,9 @@ class FiverrHub(tk.Tk):
                     self._log_write(payload, self._color_line(payload))
                 elif kind == "done":
                     self._log_write("\n  ✓  Finished successfully\n", "green")
+                    if self._active_tool and self._active_tool.get("id") == "gig_creator":
+                        my_gigs = os.path.join(OUTPUT_DIR, "my_gigs.csv")
+                        self._log_write(f"  📄  my_gigs.csv → {my_gigs}\n", "purple")
                     self._set_status("Done")
                     self._on_tool_done()
                 elif kind == "error":
